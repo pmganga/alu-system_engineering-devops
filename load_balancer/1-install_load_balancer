@@ -1,0 +1,21 @@
+#!/usr/bin/env bash
+# Installs and configures HAproxy to distribute traffic using roundrobin
+
+apt-get update -y
+apt-get install haproxy -y
+
+echo "ENABLED=1" >> /etc/default/haproxy
+
+cat << 'EOF' >> /etc/haproxy/haproxy.cfg
+
+frontend http_front
+    bind *:80
+    default_backend http_back
+
+backend http_back
+    balance roundrobin
+    server web-01 34.226.148.128:80 check
+    server web-02 44.204.151.244:80 check
+EOF
+
+service haproxy restart
