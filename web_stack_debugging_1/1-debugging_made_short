@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Safely edit config, stop service, start manual binary
+# Fix port, stop init tracking, start daemon manually in background
 sed -i 's/8080/80/g' /etc/nginx/sites-available/default
 service nginx stop
-nginx
+nginx -g 'daemon on;'
