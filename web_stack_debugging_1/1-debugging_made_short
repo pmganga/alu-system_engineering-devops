@@ -1,0 +1,4 @@
+#!/usr/bin/env bash
+# Use a wildcard to fix nginx port and start binary manually
+sed -i 's/8080/80/g' /etc/nginx/sites-*/default
+nginx
