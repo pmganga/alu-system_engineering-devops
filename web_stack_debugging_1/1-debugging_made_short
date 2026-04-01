@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Fix port, stop the init service, and start binary manually
-sed -i 's/8080/80/g' /etc/nginx/sites-enabled/default
+# Update source config, stop service tracking, start binary
+sed -i 's/8080/80/g' /etc/nginx/sites-available/default
 service nginx stop
 nginx
