@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Fix config, restart service, and delete PID to blind init
-sed -i 's/8080/80/g' /etc/nginx/sites-*/default
-service nginx restart
-rm -f /var/run/nginx.pid /run/nginx.pid
+# Edit sites-enabled directly, stop service, start manual binary
+sed -i 's/8080/80/g' /etc/nginx/sites-enabled/default
+service nginx stop
+nginx
