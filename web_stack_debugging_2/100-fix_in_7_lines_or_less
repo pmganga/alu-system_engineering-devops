@@ -1,0 +1,7 @@
+#!/usr/bin/env bash
+# Advanced: Configure Nginx as unprivileged user in 7 lines
+service nginx stop
+useradd nginx 2>/dev/null
+sed -i -e 's/\b80\b/8080/g' -e 's/www-data/nginx/g' -e 's/run\/nginx/tmp\/nginx/g' /etc/nginx/sites-available/default /etc/nginx/nginx.conf
+chown -R nginx /var/log/nginx /var/lib/nginx /var/www/html
+sudo -u nginx /usr/sbin/nginx 2>/dev/null
