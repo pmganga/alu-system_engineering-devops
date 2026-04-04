@@ -9,14 +9,18 @@ sleep 1
 # Create nginx system user if missing in this container
 id nginx &>/dev/null || useradd --system --no-create-home --shell /bin/false nginx
 
-# Fix user directive 
+# Update the user directive
 sed -i 's/^user www-data;/user nginx;/' /etc/nginx/nginx.conf
 sed -i 's/^user www-data www-data;/user nginx;/' /etc/nginx/nginx.conf
 
 # Move pid to /tmp 
-sed -i 's|^pid .*;|pid /tmp/nginx.pid;|' /etc/nginx/nginx.conf
+sed -i 's|pid /run/nginx.pid;|pid /tmp/nginx.pid;|' /etc/nginx/nginx.conf
+sed -i 's|pid /var/run/nginx.pid;|pid /tmp/nginx.pid;|' /etc/nginx/nginx.conf
 
-# Quoted heredoc keeps $uri as nginx syntax
+# Remove ssl directives 
+sed -i '/listen.*ssl/d' /etc/nginx/nginx.conf
+sed -i '/ssl_/d' /etc/nginx/nginx.conf
+
 cat > /etc/nginx/sites-available/default << 'SITE'
 server {
     listen 8080 default_server;
@@ -30,7 +34,7 @@ server {
 }
 SITE
 
-# Sync sites-enabled with the clean config
+# Sync sites-enabled with the updated config
 cp /etc/nginx/sites-available/default /etc/nginx/sites-enabled/default
 
 chown -R nginx:nginx /var/log/nginx
