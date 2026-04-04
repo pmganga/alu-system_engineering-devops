@@ -9,25 +9,14 @@ sleep 1
 # Create nginx system user if missing in this container
 id nginx &>/dev/null || useradd --system --no-create-home --shell /bin/false nginx
 
-# Rewrite nginx.conf 
-cat > /etc/nginx/nginx.conf << 'CONF'
-user nginx;
-worker_processes auto;
-pid /tmp/nginx.pid;
-events {
-    worker_connections 768;
-}
-http {
-    sendfile on;
-    include /etc/nginx/mime.types;
-    default_type application/octet-stream;
-    access_log /var/log/nginx/access.log;
-    error_log /var/log/nginx/error.log;
-    include /etc/nginx/sites-enabled/*;
-}
-CONF
+# Fix user directive 
+sed -i 's/^user www-data;/user nginx;/' /etc/nginx/nginx.conf
+sed -i 's/^user www-data www-data;/user nginx;/' /etc/nginx/nginx.conf
 
-# Write clean default site on port 8080
+# Move pid to /tmp 
+sed -i 's|^pid .*;|pid /tmp/nginx.pid;|' /etc/nginx/nginx.conf
+
+# Quoted heredoc keeps $uri as nginx syntax
 cat > /etc/nginx/sites-available/default << 'SITE'
 server {
     listen 8080 default_server;
@@ -41,11 +30,11 @@ server {
 }
 SITE
 
-# Sync sites-enabled with the updated config
+# Sync sites-enabled with the clean config
 cp /etc/nginx/sites-available/default /etc/nginx/sites-enabled/default
 
 chown -R nginx:nginx /var/log/nginx
 chown -R nginx:nginx /var/lib/nginx
 chown -R nginx:nginx /var/www/html
 
-runuser -u nginx -- /usr/sbin/nginx
+sudo -u nginx /usr/sbin/nginx
