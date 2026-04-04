@@ -1,11 +1,43 @@
 #!/usr/bin/env bash
-# Configures Nginx to run entirely as an unprivileged user on port 8080
+# Configures Nginx to run as the nginx user on port 8080
 
-service nginx stop
-useradd -M -s /bin/bash nginx 2>/dev/null
-sed -i 's/80/8080/g' /etc/nginx/sites-available/default
-sed -i '/^user /d' /etc/nginx/nginx.conf
-sed -i 's/pid \/run\/nginx.pid;/pid \/tmp\/nginx.pid;/g' /etc/nginx/nginx.conf
+# Stop all nginx processes before reconfiguring
+service nginx stop 2>/dev/null
+pkill -9 -x nginx 2>/dev/null || true
+sleep 1
+
+# Create nginx user with a real shell 
+id nginx &>/dev/null || useradd --no-create-home --shell /bin/bash nginx
+
+# Fix user directive 
+sed -i 's/user www-data;/user nginx;/g' /etc/nginx/nginx.conf
+
+# Move pid to /tmp 
+sed -i 's|pid /var/run/nginx.pid;|pid /tmp/nginx.pid;|g' /etc/nginx/nginx.conf
+sed -i 's|pid /run/nginx.pid;|pid /tmp/nginx.pid;|g' /etc/nginx/nginx.conf
+
+# Remove ssl directives 
+sed -i '/listen.*ssl/d' /etc/nginx/nginx.conf
+sed -i '/ssl_/d' /etc/nginx/nginx.conf
+
+# Write clean default site 
+cat > /etc/nginx/sites-available/default << 'SITE'
+server {
+    listen 8080 default_server;
+    listen [::]:8080 default_server;
+    root /var/www/html;
+    index index.html index.htm;
+    server_name _;
+    location / {
+        try_files $uri $uri/ =404;
+    }
+}
+SITE
+
+cp /etc/nginx/sites-available/default /etc/nginx/sites-enabled/default
+
 chown -R nginx:nginx /var/log/nginx
-chown -R nginx:nginx /var/lib/nginx
+chown -R nginx:nginx /var/lib/nginx 2>/dev/null || true
+chown -R nginx:nginx /var/www/html
+
 sudo -u nginx /usr/sbin/nginx
