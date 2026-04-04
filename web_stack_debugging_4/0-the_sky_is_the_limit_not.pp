@@ -1,4 +1,4 @@
-# Increases the amount of traffic an Nginx server can handle by modifying the ULIMIT
+# Increases the Nginx ULIMIT to handle high concurrency requests
 
 exec { 'fix--for-nginx':
   command => 'sed -i "s/15/4096/" /etc/default/nginx',
