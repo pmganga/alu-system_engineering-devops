@@ -1,28 +1,17 @@
 #!/usr/bin/env bash
-# Configures Nginx to run as the nginx user on port 8080
+# Configures Nginx to run as the nginx user safely on port 8080
 
-# Stop nginx before making config changes
-service nginx stop 2>/dev/null || true
+service nginx stop
 
-# Create nginx user if missing in this container
-id -u nginx &>/dev/null || useradd --no-create-home --shell /bin/bash nginx
+sed -i 's/80/8080/g' /etc/nginx/sites-available/default
 
-# Fix the user directive — Ubuntu 14.04 default is www-data
 sed -i 's/user www-data;/user nginx;/g' /etc/nginx/nginx.conf
 
-# Remove ssl directives — no cert installed in checker containers
-sed -i '/listen.*ssl/d' /etc/nginx/nginx.conf
-sed -i '/ssl_/d' /etc/nginx/nginx.conf
-
-# Fix port — Ubuntu 14.04 default site format uses bare listen 80
-sed -i 's/listen 80/listen 8080/g' /etc/nginx/sites-available/default
-sed -i 's/listen \[::\]:80/listen [::]:8080/g' /etc/nginx/sites-available/default
-ln -sf /etc/nginx/sites-available/default /etc/nginx/sites-enabled/default
-
-# Give nginx ownership of runtime directories
 chown -R nginx:nginx /var/log/nginx
+chown -R nginx:nginx /var/lib/nginx
 chown -R nginx:nginx /var/www/html
 
-# Start nginx as ROOT — Ubuntu 14.04 nginx 1.4.6 drops BOTH master and workers
-# to the nginx user when user directive is set, unlike nginx 1.18 on Ubuntu 20.04
-/usr/sbin/nginx
+touch /run/nginx.pid
+chown nginx:nginx /run/nginx.pid
+
+sudo -u nginx /usr/sbin/nginx 2>/dev/null
