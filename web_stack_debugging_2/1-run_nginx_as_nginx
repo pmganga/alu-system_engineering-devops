@@ -1,19 +1,19 @@
 #!/usr/bin/env bash
-# Reconfigures Nginx to listen on port 8080 and run entirely as the 'nginx' user
+# Configures Nginx to run fully as the unprivileged 'nginx' user on port 8080
 
 service nginx stop
+
+id -u nginx &>/dev/null || useradd -M -s /usr/sbin/nologin nginx
 
 sed -i 's/80/8080/g' /etc/nginx/sites-available/default
 
 sed -i 's/user www-data;/user nginx;/g' /etc/nginx/nginx.conf
 
-id -u nginx > /dev/null 2>&1 || useradd --system nginx
+sed -i 's/pid.*/pid \/var\/lib\/nginx\/nginx.pid;/g' /etc/nginx/nginx.conf
 
 chown -R nginx:nginx /var/log/nginx
 chown -R nginx:nginx /var/lib/nginx
+chown -R nginx:nginx /var/www/html
 
-touch /var/run/nginx.pid
-chown nginx:nginx /var/run/nginx.pid
-
-sudo -u nginx nginx
+sudo -u nginx /usr/sbin/nginx
 
