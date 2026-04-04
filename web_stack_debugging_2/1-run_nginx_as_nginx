@@ -1,17 +1,37 @@
 #!/usr/bin/env bash
-# Configures Nginx to run as the nginx user safely on port 8080
+# Configures Nginx to run as the nginx user on port 8080
 
-service nginx stop
+# Stop Apache2 — ALU web debugging containers often have it running
+service apache2 stop 2>/dev/null || true
 
-sed -i 's/80/8080/g' /etc/nginx/sites-available/default
+# Stop nginx completely before reconfiguring
+service nginx stop 2>/dev/null || true
+pkill -9 nginx 2>/dev/null || true
+sleep 1
 
-sed -i 's/user www-data;/user nginx;/g' /etc/nginx/nginx.conf
+# Ensure nginx user exists with usable shell
+id -u nginx &>/dev/null || useradd --no-create-home --shell /bin/bash nginx
 
+# Fix user directive — handles any existing user value
+sed -i 's/^user .*/user nginx;/' /etc/nginx/nginx.conf
+
+# Fix pid to location writable by nginx user — critical for sudo -u nginx startup
+sed -i 's|^pid .*|pid /tmp/nginx.pid;|' /etc/nginx/nginx.conf
+
+# Fix port in sites-available/default if it exists
+if [ -f /etc/nginx/sites-available/default ]; then
+    sed -i 's/listen 80/listen 8080/g' /etc/nginx/sites-available/default
+    sed -i 's/listen \[::\]:80/listen [::]:8080/g' /etc/nginx/sites-available/default
+fi
+
+# Fix port in conf.d configs if they exist
+find /etc/nginx/conf.d/ -name '*.conf' -exec sed -i 's/listen 80/listen 8080/g' {} \; 2>/dev/null || true
+
+# Fix permissions so nginx user can read configs, write logs, serve files
+chown -R nginx:nginx /etc/nginx
 chown -R nginx:nginx /var/log/nginx
-chown -R nginx:nginx /var/lib/nginx
-chown -R nginx:nginx /var/www/html
+chown -R nginx:nginx /var/lib/nginx 2>/dev/null || true
+chown -R nginx:nginx /var/www/html 2>/dev/null || true
 
-touch /run/nginx.pid
-chown nginx:nginx /run/nginx.pid
-
-sudo -u nginx /usr/sbin/nginx 2>/dev/null
+# Start nginx as the nginx user — master + workers all run as nginx
+sudo -u nginx /usr/sbin/nginx
