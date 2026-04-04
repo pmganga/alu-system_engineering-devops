@@ -1,20 +1,27 @@
 #!/usr/bin/env bash
-# Configures nginx to run natively as the unprivileged nginx user on port 8080
+# Configures Nginx to run as the nginx user on port 8080
 
-service nginx stop
+# Stop all nginx processes before reconfiguring
+service nginx stop 2>/dev/null
+pkill -9 -x nginx 2>/dev/null || true
+sleep 1
 
-id -u nginx &>/dev/null || useradd -M -s /bin/bash nginx
+# Create nginx system user if missing
+id nginx &>/dev/null || useradd --no-create-home --shell /bin/false nginx
 
-sed -i 's/80/8080/g' /etc/nginx/sites-available/default
-sed -i 's/80/8080/g' /etc/nginx/sites-enabled/default
+# Write a clean minimal nginx.conf — replaces the broken upstream/ssl config entirely
+printf 'user nginx;\nworker_processes auto;\npid /tmp/nginx.pid;\n\nevents {\n    worker_connections 768;\n}\n\nhttp {\n    sendfile on;\n    tcp_nopush on;\n    tcp_nodelay on;\n    keepalive_timeout 65;\n    types_hash_max_size 2048;\n\n    include /etc/nginx/mime.types;\n    default_type application/octet-stream;\n\n    access_log /var/log/nginx/access.log;\n    error_log /var/log/nginx/error.log;\n\n    include /etc/nginx/sites-enabled/*;\n}\n' > /etc/nginx/nginx.conf
 
-sed -i 's/user www-data;/user nginx;/g' /etc/nginx/nginx.conf
+# Write a clean default site listening on port 8080
+printf 'server {\n    listen 8080 default_server;\n    listen [::]:8080 default_server;\n\n    root /var/www/html;\n    index index.html index.htm;\n\n    server_name _;\n\n    location / {\n        try_files $uri $uri/ =404;\n    }\n}\n' > /etc/nginx/sites-available/default
 
+# Sync sites-enabled with the clean config
+cp /etc/nginx/sites-available/default /etc/nginx/sites-enabled/default
+
+# Give nginx user ownership of all runtime directories
 chown -R nginx:nginx /var/log/nginx
 chown -R nginx:nginx /var/lib/nginx
-chown -R nginx:nginx /etc/nginx
+chown -R nginx:nginx /var/www/html
 
-touch /var/run/nginx.pid
-chown nginx:nginx /var/run/nginx.pid
-
-sudo -u nginx nginx
+# Start nginx as the nginx user — PID path is already set inside nginx.conf above
+sudo -u nginx /usr/sbin/nginx
