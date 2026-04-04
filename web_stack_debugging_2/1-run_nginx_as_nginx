@@ -1,26 +1,28 @@
 #!/usr/bin/env bash
 # Configures Nginx to run as the nginx user on port 8080
 
-# Stop all existing nginx processes before reconfiguring
 service nginx stop 2>/dev/null
 pkill -9 -x nginx 2>/dev/null || true
 sleep 1
 
-# Create nginx system user if missing 
-id nginx &>/dev/null || useradd --no-create-home --shell /bin/false nginx
+# Create nginx user if missing 
+id nginx &>/dev/null || useradd --system --no-create-home --shell /bin/false nginx
 
-# Overwrite nginx.conf cleanly
-printf 'user nginx;\nworker_processes auto;\npid /tmp/nginx.pid;\n\nevents {\n    worker_connections 768;\n}\n\nhttp {\n    sendfile on;\n    include /etc/nginx/mime.types;\n    default_type application/octet-stream;\n    access_log /var/log/nginx/access.log;\n    error_log /var/log/nginx/error.log;\n    include /etc/nginx/sites-enabled/*;\n}\n' > /etc/nginx/nginx.conf
+# Fix the user directive in the main config
+sed -i 's/user www-data/user nginx/g' /etc/nginx/nginx.conf
 
-# Write a clean default site
-# shellcheck disable=SC2016
-printf 'server {\n    listen 8080 default_server;\n    listen [::]:8080 default_server;\n    root /var/www/html;\n    index index.html index.htm;\n    server_name _;\n    location / {\n        try_files $uri $uri/ =404;\n    }\n}\n' > /etc/nginx/sites-available/default
+sed -i '/listen.*ssl/d' /etc/nginx/nginx.conf
 
+# Fix port in default site 
+sed -i 's/listen 80 default_server/listen 8080 default_server/g' /etc/nginx/sites-available/default
+sed -i 's/listen \[::\]:80 default_server/listen [::]:8080 default_server/g' /etc/nginx/sites-available/default
 cp /etc/nginx/sites-available/default /etc/nginx/sites-enabled/default
 
 chown -R nginx:nginx /var/log/nginx
 chown -R nginx:nginx /var/lib/nginx
 chown -R nginx:nginx /var/www/html
 
-# Start nginx as the nginx user using su 
-su -s /bin/bash nginx -c "/usr/sbin/nginx"
+touch /var/run/nginx.pid
+chown nginx:nginx /var/run/nginx.pid
+
+sudo -u nginx /usr/sbin/nginx
