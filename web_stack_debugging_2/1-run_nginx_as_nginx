@@ -9,7 +9,7 @@ sleep 1
 # Create nginx system user if missing in this container
 id nginx &>/dev/null || useradd --system --no-create-home --shell /bin/false nginx
 
-# /var/run/ is root-owned so nginx user cannot create files there
+# Rewrite nginx.conf 
 cat > /etc/nginx/nginx.conf << 'CONF'
 user nginx;
 worker_processes auto;
@@ -27,6 +27,7 @@ http {
 }
 CONF
 
+# Write clean default site on port 8080
 cat > /etc/nginx/sites-available/default << 'SITE'
 server {
     listen 8080 default_server;
@@ -47,4 +48,4 @@ chown -R nginx:nginx /var/log/nginx
 chown -R nginx:nginx /var/lib/nginx
 chown -R nginx:nginx /var/www/html
 
-sudo -u nginx /usr/sbin/nginx
+runuser -u nginx -- /usr/sbin/nginx
