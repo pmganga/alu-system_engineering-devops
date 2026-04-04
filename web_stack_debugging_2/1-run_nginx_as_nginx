@@ -1,12 +1,11 @@
 #!/usr/bin/env bash
-# Configures Nginx to run as the nginx user on port 8080
+# Configures Nginx to run entirely as an unprivileged user on port 8080
 
-# nginx starts as root via init, reads this directive, then drops to nginx user
-sed -i 's/www-data/nginx/g' /etc/nginx/nginx.conf
-
-# Update the listening port from 80 to 8080 in the default virtual host
-sed -i 's/listen 80/listen 8080/g' /etc/nginx/sites-available/default
-sed -i 's/listen \[::\]:80/listen [::]:8080/g' /etc/nginx/sites-available/default
-
-# Restart nginx through the init system 
-service nginx restart
+service nginx stop
+useradd -M -s /bin/bash nginx 2>/dev/null
+sed -i 's/80/8080/g' /etc/nginx/sites-available/default
+sed -i '/^user /d' /etc/nginx/nginx.conf
+sed -i 's/pid \/run\/nginx.pid;/pid \/tmp\/nginx.pid;/g' /etc/nginx/nginx.conf
+chown -R nginx:nginx /var/log/nginx
+chown -R nginx:nginx /var/lib/nginx
+sudo -u nginx /usr/sbin/nginx
